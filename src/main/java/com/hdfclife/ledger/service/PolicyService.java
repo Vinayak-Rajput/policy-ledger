@@ -6,6 +6,7 @@ import com.hdfclife.ledger.exception.PolicyNotFoundException;
 import com.hdfclife.ledger.repo.ClaimRepository;
 import com.hdfclife.ledger.repo.PolicyRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
@@ -87,5 +88,10 @@ public class PolicyService {
         return claimRepository.findAll().stream()
                 .filter(c -> c.getPolicy().getPolicyNo().equals(policyNo))
                 .toList();
+    }
+
+    public ResponseEntity<List<Policy>> search(String keyword) {
+
+        return policyRepository.findByNameContainingIgnoreCase(keyword);
     }
 }

@@ -85,4 +85,17 @@ public class PolicyController {
                 .body(policyService.getClaimsByNo(policyNo));
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<Policy>> search(
+            @RequestParam(value = "keyword", required = false) String keyword
+    ){
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(policyService.getPolicies());
+        }
+        return policyService.search(keyword);
+
+    }
+
 }
