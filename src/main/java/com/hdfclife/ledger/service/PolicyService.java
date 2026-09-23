@@ -94,4 +94,14 @@ public class PolicyService {
 
         return policyRepository.findByNameContainingIgnoreCase(keyword);
     }
+
+    public Policy createPolicy(Policy policy) {
+
+        return policyRepository.save(policy);
+    }
+
+    public ResponseEntity<Void> deletePolicy(Long policyNo) {
+
+        return policyRepository.deleteAllByPolicyNo(policyNo);
+    }
 }

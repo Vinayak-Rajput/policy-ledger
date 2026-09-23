@@ -12,4 +12,6 @@ public interface PolicyRepository extends JpaRepository<Policy, Long> {
     Policy findByPolicyNo(Long policyNo);
 
     ResponseEntity<List<Policy>> findByNameContainingIgnoreCase(String keyword);
+
+    ResponseEntity<Void> deleteAllByPolicyNo(Long policyNo);
 }

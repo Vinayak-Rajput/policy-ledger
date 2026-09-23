@@ -17,7 +17,12 @@ import java.util.List;
 public class PolicyController {
 
     private final PolicyService policyService;
-
+    @PostMapping
+    public ResponseEntity<Policy> createPolicy(@RequestBody Policy policy) {
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(policyService.createPolicy(policy));
+    }
     @GetMapping
     public ResponseEntity<List<Policy>> getAllPolicies(
             @RequestParam(required = false) String status,
@@ -96,6 +101,11 @@ public class PolicyController {
         }
         return policyService.search(keyword);
 
+    }
+
+    @DeleteMapping("/{policyNo}")
+    public ResponseEntity<Void> deletePolicy(@PathVariable Long policyNo) {
+        return policyService.deletePolicy(policyNo);
     }
 
 }
