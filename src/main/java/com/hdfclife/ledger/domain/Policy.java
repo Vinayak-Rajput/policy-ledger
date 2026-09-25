@@ -40,7 +40,7 @@ public class Policy {
     @OneToMany(mappedBy = "policy", fetch = FetchType.LAZY)
     private List<Claim> claims = new ArrayList<>();
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "policy_riders",
             joinColumns = @JoinColumn(name = "policy_id"),
