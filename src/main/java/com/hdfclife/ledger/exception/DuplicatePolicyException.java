@@ -1,0 +1,9 @@
+package com.hdfclife.ledger.exception;
+
+public class DuplicatePolicyException extends DeskException {
+
+    public DuplicatePolicyException(String message){
+
+        super(message);
+    }
+}
