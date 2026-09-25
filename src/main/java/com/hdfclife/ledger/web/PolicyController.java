@@ -1,111 +1,141 @@
 package com.hdfclife.ledger.web;
 
-import com.hdfclife.ledger.domain.Claim;
-import com.hdfclife.ledger.domain.Policy;
-
+import com.hdfclife.ledger.dto.ClaimResponse;
+import com.hdfclife.ledger.dto.CreatePolicyRequest;
+import com.hdfclife.ledger.dto.PolicyResponse;
+import com.hdfclife.ledger.service.ClaimService;
 import com.hdfclife.ledger.service.PolicyService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/policies")
+@RequiredArgsConstructor
+@Tag(
+        name = "Policies",
+        description = "Policy management endpoints"
+)
 public class PolicyController {
 
     private final PolicyService policyService;
-    @PostMapping
-    public ResponseEntity<Policy> createPolicy(@RequestBody Policy policy) {
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(policyService.createPolicy(policy));
-    }
+    private final ClaimService claimService;
+
     @GetMapping
-    public ResponseEntity<List<Policy>> getAllPolicies(
+    @Operation(
+            summary = "Get all policies or filter by status, type, or customer"
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Policies retrieved successfully"
+    )
+    public ResponseEntity<List<PolicyResponse>> getPolicies(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String customerName
+            @RequestParam(required = false) String customer
     ) {
-        if(status != null && type != null && customerName != null) {
-            return ResponseEntity
-                    .status(HttpStatus.OK)
-                    .body(policyService.getPolicies(status,type,customerName));
+        if (status != null) {
+
+            return ResponseEntity.ok(policyService.getPoliciesByStatus(status));
+
+        } else if (type != null) {
+
+            return ResponseEntity.ok(policyService.getPoliciesByType(type));
+
+        } else if (customer != null) {
+
+            return ResponseEntity.ok(policyService.getPoliciesByCustomer(customer));
         }
-
-        if(status != null && type != null) {
-            return ResponseEntity
-                    .status(HttpStatus.OK)
-                    .body(policyService.getPoliciesByStatusType(status,type));
-        }
-
-        if(type != null && customerName != null) {
-            return ResponseEntity
-                    .status(HttpStatus.OK)
-                    .body(policyService.getPoliciesByTypeCustomer(type,customerName));
-        }
-
-        if(status != null && customerName != null) {
-            return ResponseEntity
-                    .status(HttpStatus.OK)
-                    .body(policyService.getPoliciesByStatusCustomer(status, customerName));
-        }
-
-        if(status != null){
-            return ResponseEntity
-                    .status(HttpStatus.OK)
-                    .body(policyService.getPoliciesByStatus(status));
-        }
-
-        if(type != null){
-            return ResponseEntity
-                    .status(HttpStatus.OK)
-                    .body(policyService.getPoliciesByType(type));
-        }
-
-        if(customerName != null){
-            return ResponseEntity
-                    .status(HttpStatus.OK)
-                    .body(policyService.getPoliciesByCustomer(customerName));
-        }
-
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(policyService.getPolicies());
-    }
-
-    @GetMapping("/{policyNo}")
-    public ResponseEntity<Policy> getPolicyByNo(@PathVariable Long policyNo) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(policyService.getPolicyByNo(policyNo));
-    }
-
-    @GetMapping("/{policyNo}/claims")
-    public ResponseEntity<List<Claim>> getClaimsByNo(@PathVariable Long policyNo) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(policyService.getClaimsByNo(policyNo));
+        return ResponseEntity.ok(policyService.getAllPolicies());
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<Policy>> search(
-            @RequestParam(value = "keyword", required = false) String keyword
-    ){
-        if (keyword == null || keyword.trim().isEmpty()) {
-            return ResponseEntity
-                    .status(HttpStatus.OK)
-                    .body(policyService.getPolicies());
-        }
-        return policyService.search(keyword);
+    @Operation(summary = "Search policies with base premium at least minPremium")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Policies found"
+    )
+    @ApiResponse(
+            responseCode = "400",
+            description = "Invalid minPremium parameter"
+    )
+    public ResponseEntity<List<PolicyResponse>> searchPolicies(@RequestParam(required = false) Integer minPremium) {
 
+        return ResponseEntity.ok(policyService.searchByMinPremium(minPremium));
+    }
+
+    @GetMapping("/{policyNo}")
+    @Operation(summary = "Get policy by policy number")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Policy found"
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Policy not found"
+    )
+    public ResponseEntity<PolicyResponse> getPolicyByNo(@PathVariable String policyNo) {
+
+        return ResponseEntity.ok(policyService.getPolicyByNo(policyNo));
+    }
+
+    @PostMapping
+    @Operation(summary = "Create a new policy")
+    @ApiResponse(
+            responseCode = "201",
+            description = "Policy created"
+    )
+    @ApiResponse(
+            responseCode = "400",
+            description = "Validation error"
+    )
+    @ApiResponse(
+            responseCode = "409",
+            description = "Duplicate policy number")
+
+    public ResponseEntity<PolicyResponse> createPolicy(@Valid @RequestBody CreatePolicyRequest request) {
+
+        PolicyResponse created = policyService.createPolicy(request);
+
+        return ResponseEntity.created(URI.create("/api/policies/" + created.getPolicyNo())).body(created);
     }
 
     @DeleteMapping("/{policyNo}")
-    public ResponseEntity<Void> deletePolicy(@PathVariable Long policyNo) {
-        return policyService.deletePolicy(policyNo);
+    @Operation(summary = "Delete policy by policy number")
+    @ApiResponse(
+            responseCode = "204",
+            description = "Policy deleted"
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Policy not found"
+    )
+    public ResponseEntity<Void> deletePolicy(@PathVariable String policyNo) {
+
+        policyService.deletePolicy(policyNo);
+
+        return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{policyNo}/claims")
+    @Operation(summary = "Get claims for a policy")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Claims retrieved"
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Policy not found"
+    )
+    public ResponseEntity<List<ClaimResponse>> getClaimsForPolicy(@PathVariable String policyNo) {
+
+        return ResponseEntity.ok(claimService.getClaimsByPolicyNo(policyNo));
+    }
 }

@@ -2,16 +2,26 @@ package com.hdfclife.ledger.repo;
 
 import com.hdfclife.ledger.domain.Policy;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
-@Repository
 public interface PolicyRepository extends JpaRepository<Policy, Long> {
-    Policy findByPolicyNo(Long policyNo);
 
-    ResponseEntity<List<Policy>> findByNameContainingIgnoreCase(String keyword);
+    Optional<Policy> findByPolicyNo(String policyNo);
 
-    ResponseEntity<Void> deleteAllByPolicyNo(Long policyNo);
+    boolean existsByPolicyNo(String policyNo);
+
+    List<Policy> findByStatusOrderByPolicyNoAsc(String status);
+
+    List<Policy> findByProductTypeOrderByPolicyNoAsc(String productType);
+
+    List<Policy> findByCustomer_FullNameOrderByPolicyNoAsc(String fullName);
+
+    @Query("SELECT p FROM Policy p WHERE p.basePremium >= :minPremium ORDER BY p.basePremium DESC")
+    List<Policy> findWithPremiumAtLeast(@Param("minPremium") int minPremium);
+
+    List<Policy> findAllByOrderByPolicyNoAsc();
 }

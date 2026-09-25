@@ -1,107 +1,133 @@
 package com.hdfclife.ledger.service;
 
-import com.hdfclife.ledger.domain.Claim;
+import com.hdfclife.ledger.domain.Customer;
 import com.hdfclife.ledger.domain.Policy;
+import com.hdfclife.ledger.domain.Rider;
+import com.hdfclife.ledger.dto.CreatePolicyRequest;
+import com.hdfclife.ledger.dto.PolicyResponse;
+import com.hdfclife.ledger.exception.DuplicatePolicyException;
+import com.hdfclife.ledger.exception.InvalidRequestException;
 import com.hdfclife.ledger.exception.PolicyNotFoundException;
-import com.hdfclife.ledger.repo.ClaimRepository;
+import com.hdfclife.ledger.repo.CustomerRepository;
 import com.hdfclife.ledger.repo.PolicyRepository;
+import com.hdfclife.ledger.repo.RiderRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class PolicyService {
 
     private final PolicyRepository policyRepository;
-    private final ClaimRepository claimRepository;
+    private final CustomerRepository customerRepository;
+    private final RiderRepository riderRepository;
 
-    public List<Policy> getPolicies() {
+    @Transactional(readOnly = true)
+    public List<PolicyResponse> getAllPolicies() {
 
-        return policyRepository.findAll();
+        return policyRepository.findAllByOrderByPolicyNoAsc().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    public List<Policy> getPoliciesByStatus(String status) {
+    @Transactional(readOnly = true)
+    public PolicyResponse getPolicyByNo(String policyNo) {
 
-        return policyRepository.findAll().stream()
-                .filter(p -> p.getStatus().equals(status))
-                .toList();
+        Policy policy = policyRepository.findByPolicyNo(policyNo)
+                .orElseThrow(() -> new PolicyNotFoundException("Policy not found: " + policyNo));
+
+        return mapToResponse(policy);
     }
 
-    public List<Policy> getPoliciesByType(String type) {
+    @Transactional(readOnly = true)
+    public List<PolicyResponse> getPoliciesByStatus(String status) {
 
-        return policyRepository.findAll().stream()
-                .filter(p -> p.getProductType().equals(type))
-                .toList();
+        return policyRepository.findByStatusOrderByPolicyNoAsc(status).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    public List<Policy> getPoliciesByCustomer(String customerName) {
+    @Transactional(readOnly = true)
+    public List<PolicyResponse> getPoliciesByType(String productType) {
 
-        return policyRepository.findAll().stream()
-                .filter(p -> p.getCustomer().getFullName().equals(customerName))
-                .toList();
+        return policyRepository.findByProductTypeOrderByPolicyNoAsc(productType).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    public List<Policy> getPolicies(String status, String type, String customerName) {
-        return policyRepository.findAll().stream()
-                .filter(p -> p.getStatus().equals(status))
-                .filter(p -> p.getProductType().equals(type))
-                .filter(p -> p.getCustomer().getFullName().equals(customerName))
-                .toList();
+    @Transactional(readOnly = true)
+    public List<PolicyResponse> getPoliciesByCustomer(String customerName) {
+
+        return policyRepository.findByCustomer_FullNameOrderByPolicyNoAsc(customerName).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    public Policy getPolicyByNo(Long policyNo) {
+    @Transactional(readOnly = true)
+    public List<PolicyResponse> searchByMinPremium(Integer minPremium) {
 
-        return policyRepository.findByPolicyNo(policyNo);
+        if (minPremium == null || minPremium < 0) {
+
+            throw new InvalidRequestException("minPremium must be greater than or equal to 0");
+        }
+
+        return policyRepository.findWithPremiumAtLeast(minPremium).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
+    @Transactional
+    public PolicyResponse createPolicy(CreatePolicyRequest request) {
 
-    public List<Policy> getPoliciesByStatusType(String status, String type) {
+        if (policyRepository.existsByPolicyNo(request.getPolicyNo())) {
 
-        return policyRepository.findAll().stream()
-                .filter(p -> p.getStatus().equals(status))
-                .filter(p -> p.getProductType().equals(type))
-                .toList();
+            throw new DuplicatePolicyException("Policy already exists: " + request.getPolicyNo());
+        }
+
+        Customer customer = customerRepository.findByEmail(request.getEmail())
+                .orElseGet(() -> customerRepository.save(new Customer(request.getCustomer(), request.getEmail())));
+
+        Policy policy = new Policy(
+                request.getPolicyNo(),
+                customer,
+                request.getType(),
+                request.getBasePremium(),
+                request.getStatus()
+        );
+
+        Policy savedPolicy = policyRepository.save(policy);
+
+        return mapToResponse(savedPolicy);
     }
 
-    public List<Policy> getPoliciesByTypeCustomer(String type, String customerName) {
+    @Transactional
+    public void deletePolicy(String policyNo) {
 
-        return policyRepository.findAll().stream()
-                .filter(p -> p.getProductType().equals(type))
-                .filter(p -> p.getCustomer().getFullName().equals(customerName))
-                .toList();
+        Policy policy = policyRepository.findByPolicyNo(policyNo)
+                .orElseThrow(() -> new PolicyNotFoundException("Policy not found: " + policyNo));
+
+        policyRepository.delete(policy);
     }
 
-    public List<Policy> getPoliciesByStatusCustomer(String status, String customerName) {
+    private PolicyResponse mapToResponse(Policy policy) {
 
-        return policyRepository.findAll().stream()
-                .filter(p -> p.getStatus().equals(status))
-                .filter(p -> p.getCustomer().getFullName().equals(customerName))
-                .toList();
-    }
+        List<String> riderCodes = policy.getRiders().stream()
+                .map(Rider::getCode)
+                .sorted()
+                .collect(Collectors.toList());
 
-    public List<Claim> getClaimsByNo(Long policyNo) {
-
-        return claimRepository.findAll().stream()
-                .filter(c -> c.getPolicy().getPolicyNo().equals(policyNo))
-                .toList();
-    }
-
-    public ResponseEntity<List<Policy>> search(String keyword) {
-
-        return policyRepository.findByNameContainingIgnoreCase(keyword);
-    }
-
-    public Policy createPolicy(Policy policy) {
-
-        return policyRepository.save(policy);
-    }
-
-    public ResponseEntity<Void> deletePolicy(Long policyNo) {
-
-        return policyRepository.deleteAllByPolicyNo(policyNo);
+        return new PolicyResponse(
+                policy.getPolicyNo(),
+                policy.getCustomer().getFullName(),
+                policy.getCustomer().getEmail(),
+                policy.getProductType(),
+                policy.getBasePremium(),
+                policy.getStatus(),
+                riderCodes
+        );
     }
 }
