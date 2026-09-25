@@ -1,26 +1,47 @@
 package com.hdfclife.ledger.web;
 
-import com.hdfclife.ledger.domain.Claim;
+import com.hdfclife.ledger.dto.ClaimResponse;
+import com.hdfclife.ledger.dto.CreateClaimRequest;
 import com.hdfclife.ledger.service.ClaimService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.net.URI;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/claims")
+@Tag(
+        name = "Claims",
+        description = "Claim management endpoints"
+)
+@RequiredArgsConstructor
 public class ClaimController {
 
     private final ClaimService claimService;
 
     @PostMapping
-    public ResponseEntity<Claim> createClaim(@RequestBody Claim claim) {
+    @Operation(summary = "Create a new claim")
+    @ApiResponse(
+            responseCode = "201",
+            description = "Claim created"
+    )
+    @ApiResponse(
+            responseCode = "400",
+            description = "Validation error"
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Policy not found"
+    )
+    public ResponseEntity<ClaimResponse> createClaim(@Valid @RequestBody CreateClaimRequest request) {
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(claimService.createClaim(claim));
+        ClaimResponse created = claimService.createClaim(request);
+
+        return ResponseEntity.created(URI.create("/api/claims/" + created.getClaimNo())).body(created);
     }
 }
