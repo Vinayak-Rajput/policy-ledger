@@ -1,11 +1,11 @@
 spring:
-  application:
-    name: policy-ledger
-
   profiles:
     active: dev
-
   jpa:
     hibernate:
       ddl-auto: none
     open-in-view: false
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui/index.html
